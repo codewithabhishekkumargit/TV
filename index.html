@@ -754,7 +754,8 @@ function render() {
 }
 
 function stopPlayer() {
-  embedFrame.src = '';
+  embedFrame.onload = null;
+  embedFrame.src = 'about:blank';
   embedFrame.style.display = 'none';
   nativePlayer.removeAttribute('src');
   nativePlayer.style.display = 'none';
@@ -831,18 +832,33 @@ async function openStream(id, name, streamUrl, player = 1) {
   streamModal.classList.add('open');
   modalSpinner.style.display = '';
 
+  const playerCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
   let loadTimer = setTimeout(() => {
-    if (modalSpinner.style.display !== 'none') {
-      if (currentEmbedPlayer < 5) {
-        modalSpinner.style.display = 'none';
-        openStream(currentStreamId, currentChannelName, currentStreamUrl, currentEmbedPlayer + 1);
-      } else {
-        loadingSlow.classList.add('show');
-      }
+    const nextIdx = playerCount.indexOf(currentEmbedPlayer) + 1;
+    if (nextIdx < playerCount.length) {
+      modalSpinner.style.display = 'none';
+      openStream(currentStreamId, currentChannelName, currentStreamUrl, playerCount[nextIdx]);
+    } else {
+      loadingSlow.classList.add('show');
     }
-  }, 25000);
+  }, 18000);
+
+  let forceHideTimer = setTimeout(() => {
+    if (modalSpinner.style.display !== 'none') {
+      modalSpinner.style.display = 'none';
+    }
+  }, 8000);
+
+  function onEmbedLoad() {
+    clearTimeout(loadTimer);
+    clearTimeout(forceHideTimer);
+    loadingSlow.classList.remove('show');
+    modalSpinner.style.display = 'none';
+  }
 
   if (activePlayer === 'native' && currentStreamUrl) {
+    clearTimeout(forceHideTimer);
     try {
       await playNative(currentStreamUrl);
       clearTimeout(loadTimer);
@@ -859,8 +875,8 @@ async function openStream(id, name, streamUrl, player = 1) {
     }
   } else {
     embedFrame.style.display = 'block';
+    embedFrame.onload = onEmbedLoad;
     embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=${player}&source=tv.json`;
-    embedFrame.onload = () => { clearTimeout(loadTimer); loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
   }
 }
 
@@ -873,8 +889,8 @@ function switchToEmbed() {
   btns.forEach(b => { b.classList.toggle('active', b.dataset.mode === 'embed'); b.setAttribute('aria-selected', b.dataset.mode === 'embed'); });
   modalSpinner.style.display = '';
   embedFrame.style.display = 'block';
-  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${currentStreamId}&autoplay=1&player=1&source=tv.json`;
   embedFrame.onload = () => { loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
+  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${currentStreamId}&autoplay=1&player=1&source=tv.json`;
 }
 
 window.retryStream = function() {
