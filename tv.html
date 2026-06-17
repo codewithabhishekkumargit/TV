@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Live TV</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: rgba(255,255,255,0.06);
+  --surface-hover: rgba(255,255,255,0.10);
+  --border: rgba(255,255,255,0.08);
+  --border-active: rgba(79,140,255,0.5);
+  --text: #f0f0f4;
+  --text-secondary: rgba(255,255,255,0.5);
+  --accent: #4f8cff;
+  --accent-glow: rgba(79,140,255,0.25);
+  --radius: 16px;
+  --radius-pill: 999px;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Liquid blobs ── */
+.blob-bg {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+}
+.blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); opacity: 0.15;
+  animation: blobFloat 20s ease-in-out infinite;
+}
+.blob:nth-child(1) {
+  width: 400px; height: 400px;
+  background: #4f8cff; top: -10%; left: -5%;
+  animation-delay: 0s;
+}
+.blob:nth-child(2) {
+  width: 350px; height: 350px;
+  background: #7c3aed; top: 40%; right: -8%;
+  animation-delay: -7s;
+}
+.blob:nth-child(3) {
+  width: 300px; height: 300px;
+  background: #06b6d4; bottom: -5%; left: 30%;
+  animation-delay: -14s;
+}
+@keyframes blobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(40px, -50px) scale(1.1) rotate(120deg); }
+  66% { transform: translate(-30px, 30px) scale(0.9) rotate(240deg); }
+}
+
+/* ── Header ── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  backdrop-filter: blur(30px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px 10px;
+}
+.header-inner {
+  max-width: 1400px; margin: 0 auto;
+  display: flex; align-items: center; gap: 12px;
+}
+.header-inner h1 {
+  font-size: 22px; font-weight: 700;
+  background: linear-gradient(135deg, #fff 60%, rgba(79,140,255,0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+}
+.search-wrap {
+  flex: 1; min-width: 160px; position: relative;
+}
+.search-wrap svg {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  color: var(--text-secondary); pointer-events: none;
+}
+.search-wrap input {
+  width: 100%; padding: 10px 14px 10px 40px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px; font-family: inherit;
+  outline: none; transition: all .25s;
+}
+.search-wrap input::placeholder { color: var(--text-secondary); }
+.search-wrap input:focus {
+  border-color: var(--border-active);
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.count-badge {
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); white-space: nowrap;
+}
+
+/* ── Filters ── */
+.filters-scroll {
+  max-width: 1400px; margin: 10px auto 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; padding-bottom: 4px;
+}
+.filters-scroll::-webkit-scrollbar { display: none; }
+.filters-wrap {
+  display: flex; gap: 6px; padding: 0 2px;
+  width: max-content;
+}
+.filters-wrap button {
+  padding: 6px 16px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap; transition: all .25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.filters-wrap button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.filters-wrap button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+
+/* ── Main ── */
+main {
+  position: relative; z-index: 1;
+  max-width: 1400px; margin: 0 auto; padding: 20px 16px 32px;
+}
+
+/* ── Channel grid ── */
+.channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.channel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden; cursor: pointer;
+  transition: all .35s cubic-bezier(.22,1,.36,1);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.channel-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  background: var(--surface-hover);
+  border-color: var(--border-active);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px var(--accent-glow);
+}
+.channel-card:active {
+  transform: translateY(-1px) scale(0.98);
+}
+.channel-card .logo-wrap {
+  width: 100%; aspect-ratio: 16/9;
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+}
+.channel-card .logo-wrap img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+.channel-card .info { padding: 10px 14px 14px; }
+.channel-card .info .name {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.channel-card .info .category {
+  font-size: 11px; font-weight: 500;
+  color: var(--text-secondary); margin-top: 4px;
+  display: inline-block;
+  padding: 2px 8px; border-radius: var(--radius-pill);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Loading ── */
+.loading-main {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 50vh;
+}
+.load-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s cubic-bezier(.6,0,.4,1) infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-msg {
+  text-align: center; padding: 60px 20px;
+  color: #ff6b6b;
+}
+.error-msg p { margin-top: 8px; font-size: 14px; color: var(--text-secondary); }
+.no-results {
+  text-align: center; padding: 60px 20px;
+  color: var(--text-secondary); font-size: 15px;
+}
+
+/* ── Modal ── */
+.stream-modal {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.7);
+  -webkit-backdrop-filter: blur(40px) saturate(1.5);
+  backdrop-filter: blur(40px) saturate(1.5);
+  align-items: center; justify-content: center;
+  padding: 16px;
+  animation: fadeIn .3s ease;
+}
+.stream-modal.open { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-content {
+  width: 100%; max-width: 960px;
+  background: rgba(20,20,28,0.95);
+  border: 1px solid var(--border);
+  border-radius: 20px; overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  animation: modalSlide .4s cubic-bezier(.22,1,.36,1);
+}
+@keyframes modalSlide {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding-right: 12px;
+}
+.modal-actions { display: flex; gap: 8px; align-items: center; }
+.close-btn {
+  width: 32px; height: 32px; display: flex;
+  align-items: center; justify-content: center;
+  border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-secondary); font-size: 20px;
+  cursor: pointer; transition: all .2s;
+  line-height: 1;
+}
+.close-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+.video-wrap {
+  position: relative; width: 100%; padding-top: 56.25%;
+  background: #000;
+}
+.video-wrap iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border: none;
+}
+.modal-spinner {
+  position: absolute; top: 50%; left: 50%;
+  width: 36px; height: 36px; margin: -18px 0 0 -18px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s cubic-bezier(.6,0,.4,1) infinite;
+  z-index: 5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  header { padding: 10px 14px 8px; }
+  .header-inner h1 { font-size: 18px; }
+  .channel-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .stream-modal { padding: 10px; }
+  .modal-content { border-radius: 14px; }
+}
+@media (max-width: 480px) {
+  .channel-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  main { padding: 14px 12px 24px; }
+  .channel-card .info { padding: 8px 10px 10px; }
+  .channel-card .info .name { font-size: 12px; }
+  .header-inner { gap: 8px; }
+  .header-inner h1 { font-size: 16px; }
+  .search-wrap input { font-size: 13px; padding: 8px 12px 8px 36px; }
+}
+</style>
+</head>
+<body>
+
+<div class="blob-bg">
+  <div class="blob"></div>
+  <div class="blob"></div>
+  <div class="blob"></div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <h1>Live TV</h1>
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+      <input type="text" id="searchInput" placeholder="Search channels..." autocomplete="off">
+    </div>
+    <span class="count-badge" id="countBadge">0</span>
+  </div>
+  <div class="filters-scroll">
+    <div class="filters-wrap" id="filtersWrap"></div>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div class="loading-main"><div class="load-spinner"></div></div>
+</main>
+
+<div class="stream-modal" id="streamModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalTitle">Channel</h2>
+      <div class="modal-actions">
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+    </div>
+    <div class="video-wrap">
+      <div class="modal-spinner" id="modalSpinner"></div>
+      <iframe id="embedFrame" allow="autoplay; encrypted-media" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" allowfullscreen></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA_URL = 'https://raw.githubusercontent.com/nightah/daddylive/main/daddylive-channels-data.json';
+
+const searchInput = document.getElementById('searchInput');
+const filtersWrap = document.getElementById('filtersWrap');
+const mainContent = document.getElementById('mainContent');
+const countBadge = document.getElementById('countBadge');
+const streamModal = document.getElementById('streamModal');
+const modalTitle = document.getElementById('modalTitle');
+const embedFrame = document.getElementById('embedFrame');
+const modalSpinner = document.getElementById('modalSpinner');
+const closeModal = document.getElementById('closeModal');
+
+let allChannels = [];
+let activeCategory = 'all';
+
+function extractId(channelUrl, streamUrl) {
+  let m = channelUrl && channelUrl.match(/stream-(\d+)/);
+  if (m) return m[1];
+  m = streamUrl && streamUrl.match(/premium(\d+)/);
+  if (m) return m[1];
+  return '';
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(DATA_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    allChannels = Object.entries(data)
+      .filter(([key]) => key !== 'GLOBAL_OPTIONS')
+      .map(([name, info]) => ({
+        name,
+        category: info.group_title || 'Unknown',
+        logo: info.tvg_logo || '',
+        streamUrl: info.stream_url || '',
+        channelUrl: info.channel_url || '',
+        id: extractId(info.channel_url, info.stream_url)
+      }));
+    init();
+  } catch (err) {
+    mainContent.innerHTML = `<div class="error-msg">
+      <h2>Failed to load channels</h2>
+      <p>${err.message}</p>
+    </div>`;
+  }
+}
+
+function init() {
+  renderFilters();
+  render();
+  searchInput.addEventListener('input', render);
+}
+
+function getCategories() {
+  const cats = new Set();
+  allChannels.forEach(c => cats.add(c.category));
+  return ['all', ...Array.from(cats).sort()];
+}
+
+function renderFilters() {
+  const cats = getCategories();
+  filtersWrap.innerHTML = cats.map(cat => `
+    <button data-cat="${cat}" class="${cat === activeCategory ? 'active' : ''}">
+      ${cat === 'all' ? 'All' : cat}
+    </button>
+  `).join('');
+  filtersWrap.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelector('.filters-wrap .active')?.classList.remove('active');
+      btn.classList.add('active');
+      activeCategory = btn.dataset.cat;
+      render();
+    });
+  });
+}
+
+function getFiltered() {
+  const q = searchInput.value.trim().toLowerCase();
+  return allChannels.filter(c => {
+    if (activeCategory !== 'all' && c.category !== activeCategory) return false;
+    if (q && !c.name.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function render() {
+  const filtered = getFiltered();
+  countBadge.textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    mainContent.innerHTML = `<div class="no-results">No channels found</div>`;
+    return;
+  }
+
+  mainContent.innerHTML = `<div class="channel-grid">${
+    filtered.map(c => `
+      <div class="channel-card" data-id="${c.id}" data-name="${c.name}">
+        <div class="logo-wrap">
+          <img src="${c.logo}" alt="${c.name}" loading="lazy" onerror="this.style.display='none'">
+        </div>
+        <div class="info">
+          <div class="name" title="${c.name}">${c.name}</div>
+          <div class="category">${c.category}</div>
+        </div>
+      </div>
+    `).join('')
+  }</div>`;
+
+  mainContent.querySelectorAll('.channel-card').forEach(card => {
+    card.addEventListener('click', () => openStream(card.dataset.id, card.dataset.name));
+  });
+}
+
+function stopPlayer() {
+  embedFrame.src = '';
+}
+
+function openStream(id, name) {
+  if (!id) return alert('No stream ID available');
+  stopPlayer();
+  modalTitle.textContent = name;
+  modalSpinner.style.display = '';
+  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&player=1&source=tv.json`;
+  embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
+  streamModal.classList.add('open');
+}
+
+closeModal.addEventListener('click', () => {
+  streamModal.classList.remove('open');
+  stopPlayer();
+});
+
+streamModal.addEventListener('click', e => {
+  if (e.target === streamModal) closeModal.click();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal.click();
+});
+
+loadData();
+</script>
+</body>
+</html>
