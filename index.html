@@ -476,7 +476,7 @@ function openStream(id, name) {
   modalSpinner.style.display = '';
   streamModal.classList.add('open');
   videoWrap.requestFullscreen().catch(() => {});
-  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
+  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&muted=0&player=1&source=tv.json`;
   embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
 }
 
