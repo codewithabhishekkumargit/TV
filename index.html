@@ -503,10 +503,10 @@
       <div class="left">
         <h2 id="modalTitle">Channel</h2>
       </div>
-      <div class="player-toggle" id="playerToggle" role="tablist">
-        <button role="tab" data-mode="embed" class="active" aria-selected="true">Embed</button>
-        <button role="tab" data-mode="native" aria-selected="false">Native</button>
-      </div>
+  <div class="player-toggle" id="playerToggle" role="tablist">
+    <button role="tab" data-mode="embed" class="active" aria-selected="true">Default</button>
+    <button role="tab" data-mode="native" aria-selected="false">Alt</button>
+  </div>
       <div class="modal-actions">
         <button class="close-btn" id="closeModal" aria-label="Close player">&times;</button>
       </div>
@@ -617,24 +617,16 @@ function preloadHls() {
 }
 
 function parseChannels(data) {
-  const globalHeaders = parseHeaders(data.GLOBAL_OPTIONS || []);
   return Object.entries(data)
     .filter(([key]) => key !== 'GLOBAL_OPTIONS')
-    .map(([name, info]) => {
-      const chHeaders = parseHeaders(info.options || []);
-      return {
-        name,
-        category: info.group_title || 'Unknown',
-        logo: info.tvg_logo || '',
-        streamUrl: info.stream_url || '',
-        channelUrl: info.channel_url || '',
-        id: extractId(info.channel_url, info.stream_url),
-        headers: {
-          Origin: chHeaders.Origin || globalHeaders.Origin,
-          Referer: chHeaders.Referer || globalHeaders.Referer,
-        },
-      };
-    });
+    .map(([name, info]) => ({
+      name,
+      category: info.group_title || 'Unknown',
+      logo: info.tvg_logo || '',
+      streamUrl: info.stream_url || '',
+      channelUrl: info.channel_url || '',
+      id: extractId(info.channel_url, info.stream_url),
+    }));
 }
 
 function saveCache(data) {
@@ -771,60 +763,54 @@ function stopPlayer() {
   modalSpinner.className = 'modal-spinner';
 }
 
-async function playNative(url, headers) {
+async function playNative(url) {
   nativePlayer.style.display = 'block';
   embedFrame.style.display = 'none';
   modalSpinner.style.display = '';
 
-  if (url.endsWith('.m3u8')) {
-    if (window.Hls || window.Hls !== undefined) {
-      try {
-        if (!window.Hls) await loadHlsJs();
-        if (hlsInstance) hlsInstance.destroy();
-
-        const config = {};
-        if (headers.Origin || headers.Referer) {
-          config.fetchSetup = (context, init) => {
-            if (headers.Origin) init.headers['Origin'] = headers.Origin;
-            if (headers.Referer) init.headers['Referer'] = headers.Referer;
-            return new Request(context.url, init);
-          };
-        }
-
-        hlsInstance = new Hls(config);
-        hlsInstance.loadSource(url);
-        hlsInstance.attachMedia(nativePlayer);
-
-        await new Promise((resolve, reject) => {
-          hlsInstance.on(Hls.Events.MANIFEST_PARSED, resolve);
-          hlsInstance.on(Hls.Events.ERROR, (e, data) => {
-            if (data.fatal) reject(new Error(data.details));
-          });
-        });
-
-        modalSpinner.style.display = 'none';
-        try { await nativePlayer.play(); } catch (_) { /* autoplay blocked */ }
-        return true;
-      } catch (err) {
-        console.warn('HLS.js failed:', err);
-        if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-      }
-    }
-
-    if (nativePlayer.canPlayType('application/vnd.apple.mpegurl')) {
-      nativePlayer.src = url;
-      modalSpinner.style.display = 'none';
-      try { await nativePlayer.play(); } catch (_) {}
-      return true;
-    }
-
-    throw new Error('HLS not supported in this browser');
-  } else {
+  if (!url || !url.endsWith('.m3u8')) {
     nativePlayer.src = url;
     modalSpinner.style.display = 'none';
     try { await nativePlayer.play(); } catch (_) {}
     return true;
   }
+
+  if (nativePlayer.canPlayType('application/vnd.apple.mpegurl')) {
+    nativePlayer.src = url;
+    modalSpinner.style.display = 'none';
+    try { await nativePlayer.play(); } catch (_) {}
+    return true;
+  }
+
+  if (window.Hls || hlsPreloaded) {
+    if (!window.Hls) await loadHlsJs();
+    if (hlsInstance) hlsInstance.destroy();
+
+    return new Promise((resolve, reject) => {
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(url);
+      hlsInstance.attachMedia(nativePlayer);
+      const timeout = setTimeout(() => reject(new Error('Connection timed out')), 15000);
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        clearTimeout(timeout);
+        modalSpinner.style.display = 'none';
+        nativePlayer.play().catch(() => {});
+        resolve(true);
+      });
+      hlsInstance.on(Hls.Events.ERROR, (e, data) => {
+        if (data.fatal) {
+          clearTimeout(timeout);
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            reject(new Error('Stream requires special headers not allowed in browsers. Default mode works.'));
+          } else {
+            reject(new Error(data.details));
+          }
+        }
+      });
+    });
+  }
+
+  throw new Error('HLS not supported in this browser. Use Default mode.');
 }
 
 async function openStream(id, name, streamUrl) {
@@ -845,9 +831,8 @@ async function openStream(id, name, streamUrl) {
   }, 25000);
 
   if (activePlayer === 'native' && currentStreamUrl) {
-    const channel = allChannels.find(c => c.id === id);
     try {
-      await playNative(currentStreamUrl, channel ? channel.headers : {});
+      await playNative(currentStreamUrl);
       clearTimeout(loadTimer);
     } catch (err) {
       clearTimeout(loadTimer);
@@ -855,8 +840,8 @@ async function openStream(id, name, streamUrl) {
       const errDiv = document.createElement('div');
       errDiv.className = 'native-error';
       errDiv.innerHTML = `
-        <span>Native playback: ${err.message}</span>
-        <button onclick="switchToEmbed()">Switch to Embed</button>`;
+        <span>Alt mode: ${err.message}</span>
+        <button onclick="switchToEmbed()">Use Default</button>`;
       videoWrap.appendChild(errDiv);
       modalSpinner.style.display = 'none';
     }
