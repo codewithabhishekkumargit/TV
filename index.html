@@ -379,6 +379,21 @@
     border-radius: 50%; animation: spin 0.8s cubic-bezier(0.6, 0, 0.4, 1) infinite;
     z-index: 5;
   }
+  .video-wrap .loading-slow {
+    display: none; position: absolute; inset: 0; z-index: 6;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; background: oklch(0 0 0 / 0.85);
+    color: var(--text-secondary); font-size: 13px;
+    padding: 20px; text-align: center;
+  }
+  .video-wrap .loading-slow.show { display: flex; }
+  .video-wrap .loading-slow button {
+    padding: 7px 18px; border-radius: var(--radius-pill);
+    background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 600;
+    transition: opacity 0.2s;
+  }
+  .video-wrap .loading-slow button:hover { opacity: 0.85; }
   .video-wrap .native-error {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
@@ -498,6 +513,10 @@
     </div>
     <div class="video-wrap" id="videoWrap">
       <div class="modal-spinner" id="modalSpinner" style="display:none"></div>
+      <div class="loading-slow" id="loadingSlow">
+        <span>Stream is taking longer than usual.</span>
+        <button onclick="window.retryStream()">Retry</button>
+      </div>
       <iframe id="embedFrame"
         allow="autoplay; encrypted-media; fullscreen"
         sandbox="allow-scripts allow-same-origin"
@@ -533,6 +552,7 @@ const modalSpinner = $('#modalSpinner');
 const closeBtn = $('#closeModal');
 const videoWrap = $('#videoWrap');
 const playerToggle = $('#playerToggle');
+const loadingSlow = $('#loadingSlow');
 
 let allChannels = [];
 let activeCategory = 'all';
@@ -745,6 +765,10 @@ function stopPlayer() {
     hlsInstance = null;
   }
   currentStreamUrl = '';
+  loadingSlow.classList.remove('show');
+  videoWrap.querySelector('.native-error')?.remove();
+  modalSpinner.removeAttribute('style');
+  modalSpinner.className = 'modal-spinner';
 }
 
 async function playNative(url, headers) {
@@ -813,27 +837,12 @@ async function openStream(id, name, streamUrl) {
   modalTitle.textContent = name;
   streamModal.classList.add('open');
   modalSpinner.style.display = '';
-  modalSpinner.textContent = '';
-
-  videoWrap.querySelector('.native-error')?.remove();
 
   let loadTimer = setTimeout(() => {
     if (modalSpinner.style.display !== 'none') {
-      modalSpinner.textContent = 'Still loading...';
-      modalSpinner.style.borderTopColor = '';
-      modalSpinner.style.animation = 'none';
-      modalSpinner.style.width = 'auto';
-      modalSpinner.style.height = 'auto';
-      modalSpinner.style.background = 'none';
-      modalSpinner.style.border = 'none';
-      modalSpinner.style.margin = '0';
-      modalSpinner.style.color = 'var(--text-secondary)';
-      modalSpinner.style.fontSize = '13px';
-      modalSpinner.style.padding = '40px 20px';
-      modalSpinner.style.textAlign = 'center';
-      modalSpinner.textContent = 'Stream taking longer than usual. Try switching to Native mode or try again.';
+      loadingSlow.classList.add('show');
     }
-  }, 12000);
+  }, 25000);
 
   if (activePlayer === 'native' && currentStreamUrl) {
     const channel = allChannels.find(c => c.id === id);
@@ -842,22 +851,24 @@ async function openStream(id, name, streamUrl) {
       clearTimeout(loadTimer);
     } catch (err) {
       clearTimeout(loadTimer);
+      loadingSlow.classList.remove('show');
       const errDiv = document.createElement('div');
       errDiv.className = 'native-error';
       errDiv.innerHTML = `
         <span>Native playback: ${err.message}</span>
-        <button onclick="window.switchToEmbed()">Switch to Embed</button>`;
+        <button onclick="switchToEmbed()">Switch to Embed</button>`;
       videoWrap.appendChild(errDiv);
       modalSpinner.style.display = 'none';
     }
   } else {
     embedFrame.style.display = 'block';
     embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
-    embedFrame.onload = () => { clearTimeout(loadTimer); modalSpinner.style.display = 'none'; };
+    embedFrame.onload = () => { clearTimeout(loadTimer); loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
   }
 }
 
 function switchToEmbed() {
+  loadingSlow.classList.remove('show');
   videoWrap.querySelector('.native-error')?.remove();
   stopPlayer();
   activePlayer = 'embed';
@@ -866,8 +877,12 @@ function switchToEmbed() {
   modalSpinner.style.display = '';
   embedFrame.style.display = 'block';
   embedFrame.src = `https://daddylive.org/embed/embed.php?id=${currentStreamId}&autoplay=1&player=1&source=tv.json`;
-  embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
+  embedFrame.onload = () => { loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
 }
+
+window.retryStream = function() {
+  if (currentStreamId) openStream(currentStreamId, currentChannelName, currentStreamUrl);
+};
 
 function init() {
   renderFilters();
