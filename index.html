@@ -12,8 +12,6 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="//newkso.ru">
 <link rel="preconnect" href="//newkso.ru" crossorigin>
-<link rel="dns-prefetch" href="//dlhd.click">
-<link rel="preconnect" href="//dlhd.click" crossorigin>
 <link rel="dns-prefetch" href="https://dlhd.pk">
 <link rel="preconnect" href="https://dlhd.pk" crossorigin>
 <link rel="dns-prefetch" href="https://viewembed.ru">
@@ -837,11 +835,11 @@ async function openStream(id, name, streamUrl, urlIdx = 0, channelUrl = '') {
   modalSpinner.style.display = '';
 
   const folders = ['stream', 'cast', 'watch', 'plus', 'casting', 'player'];
-  const domains = ['dlhd.click', 'dlhd.pk'];
 
-  const urls = [];
-  if (channelUrl) urls.push(channelUrl);
-  domains.forEach(d => folders.forEach(f => urls.push(`https://${d}/${f}/stream-${id}.php`)));
+  const baseUrls = [];
+  if (channelUrl) baseUrls.push(channelUrl.replace('dlhd.click', 'dlhd.pk'));
+  folders.forEach(f => baseUrls.push(`https://dlhd.pk/${f}/stream-${id}.php`));
+  const urls = [...new Set(baseUrls)];
   urls.push(`https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`);
 
   const current = Math.min(urlIdx, urls.length - 1);
