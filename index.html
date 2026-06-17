@@ -466,6 +466,7 @@ function render() {
 
 function stopPlayer() {
   embedFrame.src = '';
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
 function openStream(id, name) {
@@ -473,12 +474,10 @@ function openStream(id, name) {
   stopPlayer();
   modalTitle.textContent = name;
   modalSpinner.style.display = '';
-  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&player=1&source=tv.json`;
-  embedFrame.onload = () => {
-    modalSpinner.style.display = 'none';
-    videoWrap.requestFullscreen().catch(() => {});
-  };
   streamModal.classList.add('open');
+  videoWrap.requestFullscreen().catch(() => {});
+  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
+  embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
 }
 
 closeModal.addEventListener('click', () => {
