@@ -14,6 +14,8 @@
 <link rel="preconnect" href="//newkso.ru" crossorigin>
 <link rel="dns-prefetch" href="//dlhd.click">
 <link rel="preconnect" href="//dlhd.click" crossorigin>
+<link rel="dns-prefetch" href="https://dlhd.pk">
+<link rel="preconnect" href="https://dlhd.pk" crossorigin>
 <link rel="dns-prefetch" href="https://viewembed.ru">
 <link rel="preconnect" href="https://viewembed.ru" crossorigin>
 <link rel="dns-prefetch" href="https://cdnlivetv.tv">
@@ -566,7 +568,6 @@ let currentStreamId = '';
 let currentStreamUrl = '';
 let currentChannelUrl = '';
 let currentChannelName = '';
-let currentEmbedPlayer = 1;
 let hlsInstance = null;
 let loadAbort = null;
 let hlsPreloaded = false;
@@ -823,43 +824,42 @@ async function playNative(url) {
   throw new Error('HLS not supported in this browser. Use Default mode.');
 }
 
-async function openStream(id, name, streamUrl, player = 1, channelUrl = '') {
+async function openStream(id, name, streamUrl, urlIdx = 0, channelUrl = '') {
   if (!id) return alert('No stream ID available');
   stopPlayer();
   currentChannelName = name;
   currentStreamId = id;
   currentStreamUrl = streamUrl || '';
   currentChannelUrl = channelUrl || '';
-  currentEmbedPlayer = player;
 
   modalTitle.textContent = name;
   streamModal.classList.add('open');
   modalSpinner.style.display = '';
 
-  const playerCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const folders = ['stream', 'cast', 'watch', 'plus', 'casting', 'player'];
+  const domains = ['dlhd.click', 'dlhd.pk'];
+
+  const urls = [];
+  if (channelUrl) urls.push(channelUrl);
+  domains.forEach(d => folders.forEach(f => urls.push(`https://${d}/${f}/stream-${id}.php`)));
+  urls.push(`https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`);
+
+  const current = Math.min(urlIdx, urls.length - 1);
 
   let loadTimer = setTimeout(() => {
-    if (channelUrl && !loadingSlow.classList.contains('show')) {
+    if (current + 1 < urls.length) {
       modalSpinner.style.display = 'none';
-      embedFrame.style.display = 'block';
-      embedFrame.onload = () => { loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
-      embedFrame.src = channelUrl;
+      openStream(currentStreamId, currentChannelName, currentStreamUrl, current + 1);
     } else {
-      const nextIdx = playerCount.indexOf(currentEmbedPlayer) + 1;
-      if (nextIdx < playerCount.length) {
-        modalSpinner.style.display = 'none';
-        openStream(currentStreamId, currentChannelName, currentStreamUrl, playerCount[nextIdx]);
-      } else {
-        loadingSlow.classList.add('show');
-      }
+      loadingSlow.classList.add('show');
     }
-  }, 18000);
+  }, 15000);
 
   let forceHideTimer = setTimeout(() => {
     if (modalSpinner.style.display !== 'none') {
       modalSpinner.style.display = 'none';
     }
-  }, 8000);
+  }, 7000);
 
   function onEmbedLoad() {
     clearTimeout(loadTimer);
@@ -887,7 +887,7 @@ async function openStream(id, name, streamUrl, player = 1, channelUrl = '') {
   } else {
     embedFrame.style.display = 'block';
     embedFrame.onload = onEmbedLoad;
-    embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=${player}&source=tv.json`;
+    embedFrame.src = urls[current];
   }
 }
 
@@ -899,13 +899,11 @@ function switchToEmbed() {
   const btns = $$('[role="tab"]', playerToggle);
   btns.forEach(b => { b.classList.toggle('active', b.dataset.mode === 'embed'); b.setAttribute('aria-selected', b.dataset.mode === 'embed'); });
   modalSpinner.style.display = '';
-  embedFrame.style.display = 'block';
-  embedFrame.onload = () => { loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
-  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${currentStreamId}&autoplay=1&player=1&source=tv.json`;
+  openStream(currentStreamId, currentChannelName, currentStreamUrl, 0, currentChannelUrl);
 }
 
 window.retryStream = function() {
-  if (currentStreamId) openStream(currentStreamId, currentChannelName, currentStreamUrl, 1, currentChannelUrl);
+  if (currentStreamId) openStream(currentStreamId, currentChannelName, currentStreamUrl, 0, currentChannelUrl);
 };
 
 function init() {
@@ -925,7 +923,7 @@ filtersWrap.addEventListener('click', e => {
 mainContent.addEventListener('click', e => {
   const card = e.target.closest('.channel-card');
   if (!card) return;
-  openStream(card.dataset.id, card.dataset.name, card.dataset.url, 1, card.dataset.channel);
+  openStream(card.dataset.id, card.dataset.name, card.dataset.url, 0, card.dataset.channel);
 });
 
 playerToggle.addEventListener('click', e => {
@@ -935,7 +933,7 @@ playerToggle.addEventListener('click', e => {
   btns.forEach(b => { b.classList.toggle('active', b === btn); b.setAttribute('aria-selected', b === btn); });
   activePlayer = btn.dataset.mode;
   if (streamModal.classList.contains('open') && currentStreamId) {
-    openStream(currentStreamId, currentChannelName, currentStreamUrl, 1, currentChannelUrl);
+    openStream(currentStreamId, currentChannelName, currentStreamUrl, 0, currentChannelUrl);
   }
 });
 
