@@ -342,9 +342,9 @@ main {
         <button class="close-btn" id="closeModal">&times;</button>
       </div>
     </div>
-    <div class="video-wrap">
+    <div class="video-wrap" id="videoWrap">
       <div class="modal-spinner" id="modalSpinner"></div>
-      <iframe id="embedFrame" allow="autoplay; encrypted-media" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
+      <iframe id="embedFrame" allow="autoplay; encrypted-media; fullscreen" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
     </div>
   </div>
 </div>
@@ -361,6 +361,7 @@ const modalTitle = document.getElementById('modalTitle');
 const embedFrame = document.getElementById('embedFrame');
 const modalSpinner = document.getElementById('modalSpinner');
 const closeModal = document.getElementById('closeModal');
+const videoWrap = document.getElementById('videoWrap');
 
 let allChannels = [];
 let activeCategory = 'all';
@@ -473,7 +474,10 @@ function openStream(id, name) {
   modalTitle.textContent = name;
   modalSpinner.style.display = '';
   embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&player=1&source=tv.json`;
-  embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
+  embedFrame.onload = () => {
+    modalSpinner.style.display = 'none';
+    videoWrap.requestFullscreen().catch(() => {});
+  };
   streamModal.classList.add('open');
 }
 
