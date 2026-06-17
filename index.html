@@ -564,6 +564,7 @@ let activeCategory = 'all';
 let activePlayer = 'embed';
 let currentStreamId = '';
 let currentStreamUrl = '';
+let currentChannelUrl = '';
 let currentChannelName = '';
 let currentEmbedPlayer = 1;
 let hlsInstance = null;
@@ -732,10 +733,13 @@ function render() {
   mainContent.innerHTML = '<div class="channel-grid">' +
     filtered.map((c, i) => {
       const safeName = c.name.replace(/"/g, '&quot;');
+      const safeUrl = c.streamUrl.replace(/"/g, '&quot;');
+      const safeChUrl = c.channelUrl.replace(/"/g, '&quot;');
       return `<div class="channel-card"
         data-id="${c.id}"
         data-name="${safeName}"
-        data-url="${c.streamUrl.replace(/"/g, '&quot;')}"
+        data-url="${safeUrl}"
+        data-channel="${safeChUrl}"
         style="animation-delay:${(i % 30) * 30}ms">
         <div class="logo-wrap">
           <div class="skeleton"></div>
@@ -755,7 +759,6 @@ function render() {
 
 function stopPlayer() {
   embedFrame.onload = null;
-  embedFrame.src = 'about:blank';
   embedFrame.style.display = 'none';
   nativePlayer.removeAttribute('src');
   nativePlayer.style.display = 'none';
@@ -820,12 +823,13 @@ async function playNative(url) {
   throw new Error('HLS not supported in this browser. Use Default mode.');
 }
 
-async function openStream(id, name, streamUrl, player = 1) {
+async function openStream(id, name, streamUrl, player = 1, channelUrl = '') {
   if (!id) return alert('No stream ID available');
   stopPlayer();
   currentChannelName = name;
   currentStreamId = id;
   currentStreamUrl = streamUrl || '';
+  currentChannelUrl = channelUrl || '';
   currentEmbedPlayer = player;
 
   modalTitle.textContent = name;
@@ -835,12 +839,19 @@ async function openStream(id, name, streamUrl, player = 1) {
   const playerCount = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   let loadTimer = setTimeout(() => {
-    const nextIdx = playerCount.indexOf(currentEmbedPlayer) + 1;
-    if (nextIdx < playerCount.length) {
+    if (channelUrl && !loadingSlow.classList.contains('show')) {
       modalSpinner.style.display = 'none';
-      openStream(currentStreamId, currentChannelName, currentStreamUrl, playerCount[nextIdx]);
+      embedFrame.style.display = 'block';
+      embedFrame.onload = () => { loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
+      embedFrame.src = channelUrl;
     } else {
-      loadingSlow.classList.add('show');
+      const nextIdx = playerCount.indexOf(currentEmbedPlayer) + 1;
+      if (nextIdx < playerCount.length) {
+        modalSpinner.style.display = 'none';
+        openStream(currentStreamId, currentChannelName, currentStreamUrl, playerCount[nextIdx]);
+      } else {
+        loadingSlow.classList.add('show');
+      }
     }
   }, 18000);
 
@@ -894,7 +905,7 @@ function switchToEmbed() {
 }
 
 window.retryStream = function() {
-  if (currentStreamId) openStream(currentStreamId, currentChannelName, currentStreamUrl);
+  if (currentStreamId) openStream(currentStreamId, currentChannelName, currentStreamUrl, 1, currentChannelUrl);
 };
 
 function init() {
@@ -914,7 +925,7 @@ filtersWrap.addEventListener('click', e => {
 mainContent.addEventListener('click', e => {
   const card = e.target.closest('.channel-card');
   if (!card) return;
-  openStream(card.dataset.id, card.dataset.name, card.dataset.url);
+  openStream(card.dataset.id, card.dataset.name, card.dataset.url, 1, card.dataset.channel);
 });
 
 playerToggle.addEventListener('click', e => {
@@ -924,7 +935,7 @@ playerToggle.addEventListener('click', e => {
   btns.forEach(b => { b.classList.toggle('active', b === btn); b.setAttribute('aria-selected', b === btn); });
   activePlayer = btn.dataset.mode;
   if (streamModal.classList.contains('open') && currentStreamId) {
-    openStream(currentStreamId, currentChannelName, currentStreamUrl);
+    openStream(currentStreamId, currentChannelName, currentStreamUrl, 1, currentChannelUrl);
   }
 });
 
