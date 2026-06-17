@@ -362,7 +362,6 @@ const modalTitle = document.getElementById('modalTitle');
 const embedFrame = document.getElementById('embedFrame');
 const modalSpinner = document.getElementById('modalSpinner');
 const closeModal = document.getElementById('closeModal');
-const videoWrap = document.getElementById('videoWrap');
 
 let allChannels = [];
 let activeCategory = 'all';
@@ -467,7 +466,6 @@ function render() {
 
 function stopPlayer() {
   embedFrame.src = '';
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
 function openStream(id, name) {
@@ -476,7 +474,6 @@ function openStream(id, name) {
   modalTitle.textContent = name;
   modalSpinner.style.display = '';
   streamModal.classList.add('open');
-  videoWrap.requestFullscreen().catch(() => {});
   embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
   embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
 }
