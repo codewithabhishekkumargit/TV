@@ -276,9 +276,11 @@ main {
   position: relative; width: 100%; padding-top: 56.25%;
   background: #000;
 }
-.video-wrap iframe {
+.video-wrap iframe,
+.video-wrap video {
   position: absolute; inset: 0; width: 100%; height: 100%;
   border: none;
+  background: #000;
 }
 .modal-spinner {
   position: absolute; top: 50%; left: 50%;
@@ -344,11 +346,13 @@ main {
     </div>
     <div class="video-wrap" id="videoWrap">
       <div class="modal-spinner" id="modalSpinner"></div>
+      <video id="videoPlayer" playsinline controls></video>
       <iframe id="embedFrame" allow="autoplay; encrypted-media; fullscreen" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
     </div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
 const DATA_URL = 'https://raw.githubusercontent.com/nightah/daddylive/main/daddylive-channels-data.json';
 
@@ -359,9 +363,11 @@ const countBadge = document.getElementById('countBadge');
 const streamModal = document.getElementById('streamModal');
 const modalTitle = document.getElementById('modalTitle');
 const embedFrame = document.getElementById('embedFrame');
+const videoPlayer = document.getElementById('videoPlayer');
 const modalSpinner = document.getElementById('modalSpinner');
 const closeModal = document.getElementById('closeModal');
 const videoWrap = document.getElementById('videoWrap');
+let hls = null;
 
 let allChannels = [];
 let activeCategory = 'all';
@@ -465,28 +471,75 @@ function render() {
 }
 
 function stopPlayer() {
+  if (hls) { hls.destroy(); hls = null; }
+  videoPlayer.pause();
+  videoPlayer.removeAttribute('src');
+  videoPlayer.load();
+  videoPlayer.style.display = 'none';
   embedFrame.src = '';
+  embedFrame.style.display = 'none';
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function playDirect(id, name) {
+  const ch = allChannels.find(c => c.id === id);
+  if (!ch || !ch.streamUrl) return false;
+  modalTitle.textContent = name;
+  modalSpinner.style.display = '';
+  streamModal.classList.add('open');
+  videoPlayer.style.display = '';
+  embedFrame.style.display = 'none';
+  videoPlayer.muted = false;
+  videoPlayer.volume = 1;
+
+  if (Hls.isSupported()) {
+    hls = new Hls({
+      xhrSetup: (xhr) => {
+        xhr.setRequestHeader('Referer', 'https://jxoxkplay.xyz/');
+        xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36');
+      }
+    });
+    hls.loadSource(ch.streamUrl);
+    hls.attachMedia(videoPlayer);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      modalSpinner.style.display = 'none';
+      videoPlayer.play().catch(() => {});
+      videoPlayer.requestFullscreen().catch(() => {});
+    });
+    hls.on(Hls.Events.ERROR, (e, data) => {
+      if (data.fatal) {
+        hls.destroy();
+        hls = null;
+        playEmbed(id, name);
+      }
+    });
+    return true;
+  } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+    videoPlayer.src = ch.streamUrl;
+    videoPlayer.addEventListener('canplay', () => {
+      modalSpinner.style.display = 'none';
+      videoPlayer.play().catch(() => {});
+      videoPlayer.requestFullscreen().catch(() => {});
+    }, { once: true });
+    videoPlayer.addEventListener('error', () => playEmbed(id, name), { once: true });
+    return true;
+  }
+  return false;
+}
+
+function playEmbed(id, name) {
+  modalTitle.textContent = name;
+  modalSpinner.style.display = '';
+  videoPlayer.style.display = 'none';
+  embedFrame.style.display = '';
+  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
+  embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
 }
 
 function openStream(id, name) {
   if (!id) return alert('No stream ID available');
   stopPlayer();
-  modalTitle.textContent = name;
-  modalSpinner.style.display = '';
-  streamModal.classList.add('open');
-  videoWrap.requestFullscreen().catch(() => {});
-  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&muted=0&player=1&source=tv.json`;
-  embedFrame.onload = () => {
-    modalSpinner.style.display = 'none';
-    setTimeout(() => {
-      try {
-        embedFrame.contentWindow.postMessage('{"method":"unmute"}', '*');
-        embedFrame.contentWindow.postMessage('{"method":"setVolume","value":1}', '*');
-        embedFrame.contentWindow.postMessage('{"event":"command","func":"unMute"}', '*');
-      } catch(e) {}
-    }, 2000);
-  };
+  if (!playDirect(id, name)) playEmbed(id, name);
 }
 
 closeModal.addEventListener('click', () => {
