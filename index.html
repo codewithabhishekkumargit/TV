@@ -405,10 +405,17 @@ function init() {
   searchInput.addEventListener('input', render);
 }
 
+const CRICKET_KW = ['cricket','willow','cric','star sports','ten sports','ptv sports','a sport','supersport cricket','fox cricket'];
+
+function isCricket(ch) {
+  const lower = ch.name.toLowerCase();
+  return CRICKET_KW.some(kw => lower.includes(kw));
+}
+
 function getCategories() {
   const cats = new Set();
   allChannels.forEach(c => cats.add(c.category));
-  return ['all', ...Array.from(cats).sort()];
+  return ['all', '🏏 Cricket', ...Array.from(cats).sort()];
 }
 
 function renderFilters() {
@@ -431,7 +438,11 @@ function renderFilters() {
 function getFiltered() {
   const q = searchInput.value.trim().toLowerCase();
   return allChannels.filter(c => {
-    if (activeCategory !== 'all' && c.category !== activeCategory) return false;
+    if (activeCategory === '🏏 Cricket') {
+      if (!isCricket(c)) return false;
+    } else if (activeCategory !== 'all' && c.category !== activeCategory) {
+      return false;
+    }
     if (q && !c.name.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q)) return false;
     return true;
   });
