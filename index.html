@@ -8,6 +8,12 @@
 <link rel="preconnect" href="https://daddylive.org" crossorigin>
 <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
 <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="//newkso.ru">
+<link rel="preconnect" href="//newkso.ru" crossorigin>
+<link rel="dns-prefetch" href="//dlhd.click">
+<link rel="preconnect" href="//dlhd.click" crossorigin>
 <style>
 @layer reset, base, components, utilities, animations;
 
@@ -509,6 +515,8 @@
 <script>
 const DATA_URL = 'https://raw.githubusercontent.com/nightah/daddylive/main/daddylive-channels-data.json';
 const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js';
+const CACHE_KEY = 'tv_channels';
+const CACHE_TTL = 30 * 60 * 1000;
 
 const $ = (s, p = document) => p.querySelector(s);
 const $$ = (s, p = document) => [...p.querySelectorAll(s)];
@@ -534,6 +542,7 @@ let currentStreamUrl = '';
 let currentChannelName = '';
 let hlsInstance = null;
 let loadAbort = null;
+let hlsPreloaded = false;
 
 const CRICKET_KW = ['cricket', 'willow', 'cric', 'star sports', 'ten sports', 'ptv sports', 'a sport', 'supersport cricket', 'fox cricket'];
 
@@ -570,15 +579,79 @@ function loadHlsJs() {
     if (window.Hls) return resolve(window.Hls);
     const s = document.createElement('script');
     s.src = HLS_JS_URL;
-    s.onload = () => resolve(window.Hls);
+    s.async = true;
+    s.onload = () => { hlsPreloaded = true; resolve(window.Hls); };
     s.onerror = () => reject(new Error('Failed to load hls.js'));
     document.head.appendChild(s);
   });
 }
 
+function preloadHls() {
+  if (!window.Hls && !hlsPreloaded) {
+    const s = document.createElement('script');
+    s.src = HLS_JS_URL;
+    s.async = true;
+    s.onload = () => { hlsPreloaded = true; };
+    document.head.appendChild(s);
+  }
+}
+
+function parseChannels(data) {
+  const globalHeaders = parseHeaders(data.GLOBAL_OPTIONS || []);
+  return Object.entries(data)
+    .filter(([key]) => key !== 'GLOBAL_OPTIONS')
+    .map(([name, info]) => {
+      const chHeaders = parseHeaders(info.options || []);
+      return {
+        name,
+        category: info.group_title || 'Unknown',
+        logo: info.tvg_logo || '',
+        streamUrl: info.stream_url || '',
+        channelUrl: info.channel_url || '',
+        id: extractId(info.channel_url, info.stream_url),
+        headers: {
+          Origin: chHeaders.Origin || globalHeaders.Origin,
+          Referer: chHeaders.Referer || globalHeaders.Referer,
+        },
+      };
+    });
+}
+
+function saveCache(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), channels: data }));
+  } catch (_) {}
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { ts, channels } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(CACHE_KEY); return null; }
+    return channels;
+  } catch (_) { return null; }
+}
+
 async function loadData() {
   loadAbort = new AbortController();
   const signal = loadAbort.signal;
+
+  const cached = loadCache();
+  if (cached) {
+    allChannels = cached;
+    init();
+    setTimeout(() => {
+      fetch(DATA_URL, { signal }).then(r => r.ok && r.json()).then(data => {
+        const fresh = parseChannels(data);
+        allChannels = fresh;
+        saveCache(fresh);
+        if (activeCategory === 'all' && !searchInput.value.trim()) render();
+        else init();
+      }).catch(() => {});
+    }, 1000);
+    return;
+  }
 
   try {
     mainContent.innerHTML = '<div class="state-wrap"><div class="spinner"></div></div>';
@@ -586,26 +659,8 @@ async function loadData() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    const globalHeaders = parseHeaders(data.GLOBAL_OPTIONS || []);
-
-    allChannels = Object.entries(data)
-      .filter(([key]) => key !== 'GLOBAL_OPTIONS')
-      .map(([name, info]) => {
-        const chHeaders = parseHeaders(info.options || []);
-        return {
-          name,
-          category: info.group_title || 'Unknown',
-          logo: info.tvg_logo || '',
-          streamUrl: info.stream_url || '',
-          channelUrl: info.channel_url || '',
-          id: extractId(info.channel_url, info.stream_url),
-          headers: {
-            Origin: chHeaders.Origin || globalHeaders.Origin,
-            Referer: chHeaders.Referer || globalHeaders.Referer,
-          },
-        };
-      });
-
+    allChannels = parseChannels(data);
+    saveCache(allChannels);
     init();
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -758,26 +813,47 @@ async function openStream(id, name, streamUrl) {
   modalTitle.textContent = name;
   streamModal.classList.add('open');
   modalSpinner.style.display = '';
+  modalSpinner.textContent = '';
 
   videoWrap.querySelector('.native-error')?.remove();
+
+  let loadTimer = setTimeout(() => {
+    if (modalSpinner.style.display !== 'none') {
+      modalSpinner.textContent = 'Still loading...';
+      modalSpinner.style.borderTopColor = '';
+      modalSpinner.style.animation = 'none';
+      modalSpinner.style.width = 'auto';
+      modalSpinner.style.height = 'auto';
+      modalSpinner.style.background = 'none';
+      modalSpinner.style.border = 'none';
+      modalSpinner.style.margin = '0';
+      modalSpinner.style.color = 'var(--text-secondary)';
+      modalSpinner.style.fontSize = '13px';
+      modalSpinner.style.padding = '40px 20px';
+      modalSpinner.style.textAlign = 'center';
+      modalSpinner.textContent = 'Stream taking longer than usual. Try switching to Native mode or try again.';
+    }
+  }, 12000);
 
   if (activePlayer === 'native' && currentStreamUrl) {
     const channel = allChannels.find(c => c.id === id);
     try {
       await playNative(currentStreamUrl, channel ? channel.headers : {});
+      clearTimeout(loadTimer);
     } catch (err) {
+      clearTimeout(loadTimer);
       const errDiv = document.createElement('div');
       errDiv.className = 'native-error';
       errDiv.innerHTML = `
         <span>Native playback: ${err.message}</span>
-        <button onclick="switchToEmbed()">Switch to Embed</button>`;
+        <button onclick="window.switchToEmbed()">Switch to Embed</button>`;
       videoWrap.appendChild(errDiv);
       modalSpinner.style.display = 'none';
     }
   } else {
     embedFrame.style.display = 'block';
     embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
-    embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
+    embedFrame.onload = () => { clearTimeout(loadTimer); modalSpinner.style.display = 'none'; };
   }
 }
 
@@ -837,7 +913,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && streamModal.classList.contains('open')) closeBtn.click();
 });
 
-pushloadData();
+if ('requestIdleCallback' in window) {
+  requestIdleCallback(() => preloadHls());
+} else {
+  setTimeout(preloadHls, 2000);
+}
+loadData();
 </script>
 </body>
 </html>
