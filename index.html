@@ -2,443 +2,642 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>Live TV</title>
 <link rel="dns-prefetch" href="https://daddylive.org">
 <link rel="preconnect" href="https://daddylive.org" crossorigin>
+<link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
 <style>
+@layer reset, base, components, utilities, animations;
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg: #0a0a0f;
-  --surface: rgba(255,255,255,0.06);
-  --surface-hover: rgba(255,255,255,0.10);
-  --border: rgba(255,255,255,0.08);
-  --border-active: rgba(79,140,255,0.5);
-  --text: #f0f0f4;
-  --text-secondary: rgba(255,255,255,0.5);
-  --accent: #4f8cff;
-  --accent-glow: rgba(79,140,255,0.25);
-  --radius: 16px;
-  --radius-pill: 999px;
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input { font-family: inherit; border: none; outline: none; background: none; color: inherit; }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; text-decoration: none; }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  :root {
+    --bg: oklch(0.05 0.01 270);
+    --surface: oklch(1 0 0 / 0.06);
+    --surface-hover: oklch(1 0 0 / 0.10);
+    --surface-active: oklch(1 0 0 / 0.14);
+    --border: oklch(1 0 0 / 0.08);
+    --border-active: oklch(0.6 0.18 260 / 0.6);
+    --text: oklch(0.95 0.01 270);
+    --text-secondary: oklch(1 0 0 / 0.5);
+    --accent: oklch(0.6 0.18 260);
+    --accent-glow: oklch(0.6 0.18 260 / 0.25);
+    --radius: 14px;
+    --radius-lg: 20px;
+    --radius-pill: 999px;
+    --shadow-card: 0 4px 24px oklch(0 0 0 / 0.3);
+    --shadow-modal: 0 24px 80px oklch(0 0 0 / 0.6);
+    --transition: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    accent-color: var(--accent);
+  }
+  ::selection { background: var(--accent); color: #fff; }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
 }
 
-/* ── Liquid blobs ── */
-.blob-bg {
-  position: fixed; inset: 0; z-index: 0;
-  pointer-events: none; overflow: hidden;
-}
-.blob {
-  position: absolute; border-radius: 50%;
-  filter: blur(80px); opacity: 0.15;
-  animation: blobFloat 20s ease-in-out infinite;
-}
-.blob:nth-child(1) {
-  width: 400px; height: 400px;
-  background: #4f8cff; top: -10%; left: -5%;
-  animation-delay: 0s;
-}
-.blob:nth-child(2) {
-  width: 350px; height: 350px;
-  background: #7c3aed; top: 40%; right: -8%;
-  animation-delay: -7s;
-}
-.blob:nth-child(3) {
-  width: 300px; height: 300px;
-  background: #06b6d4; bottom: -5%; left: 30%;
-  animation-delay: -14s;
-}
-@keyframes blobFloat {
-  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-  33% { transform: translate(40px, -50px) scale(1.1) rotate(120deg); }
-  66% { transform: translate(-30px, 30px) scale(0.9) rotate(240deg); }
+@layer components {
+  .bg-effects {
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none; overflow: hidden;
+    contain: layout style paint;
+  }
+  .bg-effects .orbit {
+    position: absolute; border-radius: 50%;
+    filter: blur(100px); opacity: 0.12;
+    will-change: transform;
+    animation: orbitFloat 25s ease-in-out infinite;
+  }
+  .bg-effects .orbit:nth-child(1) {
+    width: 500px; height: 500px;
+    background: var(--accent); top: -15%; left: -10%;
+    animation-delay: 0s;
+  }
+  .bg-effects .orbit:nth-child(2) {
+    width: 400px; height: 400px;
+    background: oklch(0.55 0.22 300); top: 35%; right: -12%;
+    animation-delay: -8s;
+  }
+  .bg-effects .orbit:nth-child(3) {
+    width: 350px; height: 350px;
+    background: oklch(0.6 0.15 200); bottom: -10%; left: 25%;
+    animation-delay: -16s;
+  }
+  .bg-effects .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(oklch(1 0 0 / 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: oklch(0.05 0.01 270 / 0.8);
+    -webkit-backdrop-filter: blur(30px) saturate(1.4);
+    backdrop-filter: blur(30px) saturate(1.4);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px 8px;
+    contain: layout style;
+  }
+  .header-inner {
+    max-width: 1400px; margin: 0 auto;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 55%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap; line-height: 1.2;
+    flex-shrink: 0;
+  }
+  .logo small {
+    font-weight: 400; font-size: 0.6em;
+    -webkit-text-fill-color: var(--text-secondary);
+  }
+  .search-wrap {
+    flex: 1; min-width: 140px; position: relative;
+  }
+  .search-wrap .icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    color: var(--text-secondary); pointer-events: none;
+    transition: color var(--transition);
+  }
+  .search-wrap:focus-within .icon { color: var(--accent); }
+  .search-wrap input {
+    width: 100%; padding: 9px 12px 9px 38px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 13.5px;
+    transition: all var(--transition);
+  }
+  .search-wrap input::placeholder { color: var(--text-secondary); }
+  .search-wrap input:focus {
+    border-color: var(--border-active);
+    background: var(--surface-hover);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .count-badge {
+    font-size: 12px; font-weight: 500;
+    color: var(--text-secondary); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  .filters-scroll {
+    max-width: 1400px; margin: 8px auto 0;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -webkit-mask: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+    mask: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  }
+  .filters-scroll::-webkit-scrollbar { display: none; }
+  .filters-wrap {
+    display: flex; gap: 5px; padding: 0 4px 4px;
+    width: max-content;
+  }
+  .filters-wrap .pill {
+    padding: 5px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 12.5px; font-weight: 500;
+    white-space: nowrap; transition: all var(--transition);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .filters-wrap .pill:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+  .filters-wrap .pill.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 2px 12px var(--accent-glow);
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 1400px; margin: 0 auto; padding: 16px 16px 32px;
+    contain: layout style;
+  }
+
+  .state-wrap {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 40vh; flex-direction: column; gap: 12px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  }
+  .error-msg { text-align: center; padding: 40px 20px; }
+  .error-msg h2 { color: oklch(0.7 0.15 30); font-size: 18px; }
+  .error-msg p { margin-top: 6px; font-size: 13px; color: var(--text-secondary); }
+  .error-msg .retry-btn {
+    margin-top: 14px; padding: 8px 20px;
+    border-radius: var(--radius-pill);
+    background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 600;
+    transition: opacity var(--transition);
+  }
+  .error-msg .retry-btn:hover { opacity: 0.85; }
+  .no-results {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-secondary); font-size: 14px;
+  }
+
+  .channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+    gap: 10px;
+    container: grid / inline-size;
+  }
+  .channel-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    position: relative;
+    opacity: 0;
+    animation: cardEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .channel-card::before {
+    content: ''; position: absolute; inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--border), transparent 50%, var(--border));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity var(--transition);
+    opacity: 0;
+  }
+  .channel-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    background: var(--surface-hover);
+    box-shadow: 0 8px 32px oklch(0 0 0 / 0.4), 0 0 20px var(--accent-glow);
+  }
+  .channel-card:hover::before { opacity: 1; }
+  .channel-card:active {
+    transform: translateY(-1px) scale(0.98);
+    background: var(--surface-active);
+  }
+  .channel-card .logo-wrap {
+    width: 100%; aspect-ratio: 16/9;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: linear-gradient(180deg, oklch(1 0 0 / 0.03), transparent);
+    position: relative;
+  }
+  .channel-card .logo-wrap .skeleton {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  .channel-card .logo-wrap img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px oklch(0 0 0 / 0.3));
+    position: relative; z-index: 1;
+  }
+  .channel-card .info { padding: 8px 12px 12px; }
+  .channel-card .info .name {
+    font-size: 12.5px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .channel-card .info .category {
+    font-size: 10.5px; font-weight: 500;
+    color: var(--text-secondary); margin-top: 3px;
+    display: inline-block;
+    padding: 2px 7px; border-radius: var(--radius-pill);
+    background: oklch(1 0 0 / 0.04);
+  }
+
+  .stream-modal {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: oklch(0 0 0 / 0.7);
+    -webkit-backdrop-filter: blur(40px) saturate(1.5);
+    backdrop-filter: blur(40px) saturate(1.5);
+    align-items: center; justify-content: center;
+    padding: 12px;
+  }
+  .stream-modal.open { display: flex; }
+  .stream-modal.open .modal-content {
+    animation: modalEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .modal-content {
+    width: 100%; max-width: 1000px;
+    background: oklch(0.12 0.01 270 / 0.95);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+    box-shadow: var(--shadow-modal);
+    opacity: 0; transform: scale(0.92) translateY(20px);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    background: oklch(1 0 0 / 0.03);
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header .left {
+    display: flex; align-items: center; gap: 10px; flex: 1;
+    min-width: 0;
+  }
+  .modal-header h2 {
+    font-size: 14px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .player-toggle {
+    display: flex; gap: 2px;
+    background: var(--surface);
+    border-radius: var(--radius-pill);
+    padding: 2px;
+    flex-shrink: 0;
+  }
+  .player-toggle button {
+    padding: 4px 10px; border-radius: var(--radius-pill);
+    font-size: 11px; font-weight: 600;
+    color: var(--text-secondary); transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .player-toggle button.active {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 2px 8px var(--accent-glow);
+  }
+  .modal-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .close-btn {
+    width: 30px; height: 30px; display: flex;
+    align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: oklch(1 0 0 / 0.08);
+    color: var(--text-secondary); font-size: 18px;
+    transition: all 0.2s; line-height: 1;
+  }
+  .close-btn:hover { background: oklch(1 0 0 / 0.15); color: #fff; }
+
+  .video-wrap {
+    position: relative; width: 100%;
+    background: #000;
+    aspect-ratio: 16 / 9;
+  }
+  .video-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: none; background: #000;
+  }
+  .video-wrap video {
+    width: 100%; height: 100%;
+    display: block; background: #000;
+  }
+  .video-wrap .modal-spinner {
+    position: absolute; top: 50%; left: 50%;
+    width: 32px; height: 32px; margin: -16px 0 0 -16px;
+    border: 2.5px solid oklch(1 0 0 / 0.1);
+    border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+    z-index: 5;
+  }
+  .video-wrap .native-error {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px; background: oklch(0 0 0 / 0.85); z-index: 6;
+    color: var(--text-secondary); font-size: 13px;
+    padding: 20px; text-align: center;
+  }
+  .video-wrap .native-error button {
+    padding: 7px 18px; border-radius: var(--radius-pill);
+    background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 600;
+    transition: opacity 0.2s;
+  }
+  .video-wrap .native-error button:hover { opacity: 0.85; }
 }
 
-/* ── Header ── */
-header {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(10,10,15,0.8);
-  -webkit-backdrop-filter: blur(30px) saturate(1.4);
-  backdrop-filter: blur(30px) saturate(1.4);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 16px 10px;
-}
-.header-inner {
-  max-width: 1400px; margin: 0 auto;
-  display: flex; align-items: center; gap: 12px;
-}
-.header-inner h1 {
-  font-size: 22px; font-weight: 700;
-  background: linear-gradient(135deg, #fff 60%, rgba(79,140,255,0.7));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  white-space: nowrap;
-}
-.search-wrap {
-  flex: 1; min-width: 160px; position: relative;
-}
-.search-wrap svg {
-  position: absolute; left: 12px; top: 50%;
-  transform: translateY(-50%);
-  width: 18px; height: 18px;
-  color: var(--text-secondary); pointer-events: none;
-}
-.search-wrap input {
-  width: 100%; padding: 10px 14px 10px 40px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 14px; font-family: inherit;
-  outline: none; transition: all .25s;
-}
-.search-wrap input::placeholder { color: var(--text-secondary); }
-.search-wrap input:focus {
-  border-color: var(--border-active);
-  background: rgba(255,255,255,0.08);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-.count-badge {
-  font-size: 13px; font-weight: 500;
-  color: var(--text-secondary); white-space: nowrap;
+@layer utilities {
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap;
+    border: 0;
+  }
 }
 
-/* ── Filters ── */
-.filters-scroll {
-  max-width: 1400px; margin: 10px auto 0;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; padding-bottom: 4px;
-}
-.filters-scroll::-webkit-scrollbar { display: none; }
-.filters-wrap {
-  display: flex; gap: 6px; padding: 0 2px;
-  width: max-content;
-}
-.filters-wrap button {
-  padding: 6px 16px; border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-secondary);
-  cursor: pointer; font-size: 13px; font-weight: 500;
-  font-family: inherit;
-  white-space: nowrap; transition: all .25s;
-  -webkit-tap-highlight-color: transparent;
-}
-.filters-wrap button:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-.filters-wrap button.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-  box-shadow: 0 2px 12px var(--accent-glow);
+@layer animations {
+  @keyframes orbitFloat {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    33% { transform: translate(50px, -60px) scale(1.15) rotate(120deg); }
+    66% { transform: translate(-40px, 40px) scale(0.85) rotate(240deg); }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @keyframes cardEnter {
+    from { opacity: 0; transform: translateY(12px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes modalEnter {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
 }
 
-/* ── Main ── */
-main {
-  position: relative; z-index: 1;
-  max-width: 1400px; margin: 0 auto; padding: 20px 16px 32px;
+@container grid (max-width: 500px) {
+  .channel-card .logo-wrap { padding: 12px; }
+  .channel-card .info { padding: 6px 10px 10px; }
+  .channel-card .info .name { font-size: 11.5px; }
 }
 
-/* ── Channel grid ── */
-.channel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 12px;
-}
-.channel-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden; cursor: pointer;
-  transition: all .35s cubic-bezier(.22,1,.36,1);
-  -webkit-tap-highlight-color: transparent;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-}
-.channel-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  background: var(--surface-hover);
-  border-color: var(--border-active);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px var(--accent-glow);
-}
-.channel-card:active {
-  transform: translateY(-1px) scale(0.98);
-}
-.channel-card .logo-wrap {
-  width: 100%; aspect-ratio: 16/9;
-  display: flex; align-items: center; justify-content: center;
-  padding: 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
-}
-.channel-card .logo-wrap img {
-  max-width: 100%; max-height: 100%;
-  object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-.channel-card .info { padding: 10px 14px 14px; }
-.channel-card .info .name {
-  font-size: 13px; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.channel-card .info .category {
-  font-size: 11px; font-weight: 500;
-  color: var(--text-secondary); margin-top: 4px;
-  display: inline-block;
-  padding: 2px 8px; border-radius: var(--radius-pill);
-  background: rgba(255,255,255,0.04);
-}
-
-/* ── Loading ── */
-.loading-main {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 50vh;
-}
-.load-spinner {
-  width: 36px; height: 36px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .8s cubic-bezier(.6,0,.4,1) infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.error-msg {
-  text-align: center; padding: 60px 20px;
-  color: #ff6b6b;
-}
-.error-msg p { margin-top: 8px; font-size: 14px; color: var(--text-secondary); }
-.no-results {
-  text-align: center; padding: 60px 20px;
-  color: var(--text-secondary); font-size: 15px;
-}
-
-/* ── Modal ── */
-.stream-modal {
-  display: none; position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,0.7);
-  -webkit-backdrop-filter: blur(40px) saturate(1.5);
-  backdrop-filter: blur(40px) saturate(1.5);
-  align-items: center; justify-content: center;
-  padding: 16px;
-  animation: fadeIn .3s ease;
-}
-.stream-modal.open { display: flex; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.modal-content {
-  width: 100%; max-width: 960px;
-  background: rgba(20,20,28,0.95);
-  border: 1px solid var(--border);
-  border-radius: 20px; overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
-  animation: modalSlide .4s cubic-bezier(.22,1,.36,1);
-}
-@keyframes modalSlide {
-  from { opacity: 0; transform: scale(0.92) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px;
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid var(--border);
-}
-.modal-header h2 {
-  font-size: 15px; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding-right: 12px;
-}
-.modal-actions { display: flex; gap: 8px; align-items: center; }
-.close-btn {
-  width: 32px; height: 32px; display: flex;
-  align-items: center; justify-content: center;
-  border-radius: 50%; border: none;
-  background: rgba(255,255,255,0.08);
-  color: var(--text-secondary); font-size: 20px;
-  cursor: pointer; transition: all .2s;
-  line-height: 1;
-}
-.close-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-
-.video-wrap {
-  position: relative; width: 100%; padding-top: 56.25%;
-  background: #000;
-}
-.video-wrap iframe {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  border: none;
-  background: #000;
-}
-.modal-spinner {
-  position: absolute; top: 50%; left: 50%;
-  width: 36px; height: 36px; margin: -18px 0 0 -18px;
-  border: 3px solid rgba(255,255,255,0.1);
-  border-top-color: var(--accent);
-  border-radius: 50%; animation: spin .8s cubic-bezier(.6,0,.4,1) infinite;
-  z-index: 5;
-}
-
-/* ── Responsive ── */
 @media (max-width: 768px) {
-  header { padding: 10px 14px 8px; }
-  .header-inner h1 { font-size: 18px; }
-  .channel-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-  .stream-modal { padding: 10px; }
+  header { padding: 8px 12px 6px; }
+  .logo { font-size: 17px; }
+  .channel-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .modal-content { border-radius: 14px; }
+  .stream-modal { padding: 8px; }
+  .player-toggle button { font-size: 10px; padding: 3px 8px; }
 }
 @media (max-width: 480px) {
-  .channel-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  main { padding: 14px 12px 24px; }
-  .channel-card .info { padding: 8px 10px 10px; }
-  .channel-card .info .name { font-size: 12px; }
-  .header-inner { gap: 8px; }
-  .header-inner h1 { font-size: 16px; }
-  .search-wrap input { font-size: 13px; padding: 8px 12px 8px 36px; }
+  .channel-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  main { padding: 12px 10px 24px; }
+  header { padding: 6px 10px 5px; }
+  .logo { font-size: 15px; }
+  .search-wrap input { font-size: 12.5px; padding: 7px 10px 7px 34px; }
+  .search-wrap .icon { width: 14px; height: 14px; left: 10px; }
+  .filters-wrap .pill { font-size: 11.5px; padding: 4px 11px; }
+  .channel-card .info .name { font-size: 11px; }
+  .count-badge { font-size: 11px; }
+  .modal-header { padding: 10px 12px; }
+  .modal-header h2 { font-size: 13px; }
 }
 </style>
 </head>
 <body>
 
-<div class="blob-bg">
-  <div class="blob"></div>
-  <div class="blob"></div>
-  <div class="blob"></div>
+<div class="bg-effects">
+  <div class="orbit"></div>
+  <div class="orbit"></div>
+  <div class="orbit"></div>
+  <div class="grid-overlay"></div>
 </div>
 
 <header>
   <div class="header-inner">
-    <h1>Live TV</h1>
+    <div class="logo">Live <small>TV</small></div>
     <div class="search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
-      <input type="text" id="searchInput" placeholder="Search channels..." autocomplete="off">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+      <input type="text" id="searchInput" placeholder="Search channels..." autocomplete="off" aria-label="Search channels">
     </div>
-    <span class="count-badge" id="countBadge">0</span>
+    <span class="count-badge" id="countBadge" aria-live="polite">0</span>
   </div>
-  <div class="filters-scroll">
-    <div class="filters-wrap" id="filtersWrap"></div>
-  </div>
+  <nav class="filters-scroll" aria-label="Category filters">
+    <div class="filters-wrap" id="filtersWrap" role="tablist"></div>
+  </nav>
 </header>
 
-<main id="mainContent">
-  <div class="loading-main"><div class="load-spinner"></div></div>
+<main id="mainContent" role="main">
+  <div class="state-wrap"><div class="spinner"></div></div>
 </main>
 
-<div class="stream-modal" id="streamModal">
+<div class="stream-modal" id="streamModal" role="dialog" aria-modal="true" aria-label="Video player">
   <div class="modal-content">
     <div class="modal-header">
-      <h2 id="modalTitle">Channel</h2>
+      <div class="left">
+        <h2 id="modalTitle">Channel</h2>
+      </div>
+      <div class="player-toggle" id="playerToggle" role="tablist">
+        <button role="tab" data-mode="embed" class="active" aria-selected="true">Embed</button>
+        <button role="tab" data-mode="native" aria-selected="false">Native</button>
+      </div>
       <div class="modal-actions">
-        <button class="close-btn" id="closeModal">&times;</button>
+        <button class="close-btn" id="closeModal" aria-label="Close player">&times;</button>
       </div>
     </div>
     <div class="video-wrap" id="videoWrap">
-      <div class="modal-spinner" id="modalSpinner"></div>
-      <iframe id="embedFrame" allow="autoplay; encrypted-media; fullscreen" sandbox="allow-scripts allow-same-origin" allowfullscreen loading="eager" fetchpriority="high"></iframe>
+      <div class="modal-spinner" id="modalSpinner" style="display:none"></div>
+      <iframe id="embedFrame"
+        allow="autoplay; encrypted-media; fullscreen"
+        sandbox="allow-scripts allow-same-origin"
+        allowfullscreen
+        loading="eager"
+        fetchpriority="high"
+        style="display:none"
+        title="Stream player"
+      ></iframe>
+      <video id="nativePlayer" playsinline preload="auto" style="display:none"></video>
     </div>
   </div>
 </div>
 
 <script>
 const DATA_URL = 'https://raw.githubusercontent.com/nightah/daddylive/main/daddylive-channels-data.json';
+const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js';
 
-const searchInput = document.getElementById('searchInput');
-const filtersWrap = document.getElementById('filtersWrap');
-const mainContent = document.getElementById('mainContent');
-const countBadge = document.getElementById('countBadge');
-const streamModal = document.getElementById('streamModal');
-const modalTitle = document.getElementById('modalTitle');
-const embedFrame = document.getElementById('embedFrame');
-const modalSpinner = document.getElementById('modalSpinner');
-const closeModal = document.getElementById('closeModal');
+const $ = (s, p = document) => p.querySelector(s);
+const $$ = (s, p = document) => [...p.querySelectorAll(s)];
+
+const searchInput = $('#searchInput');
+const filtersWrap = $('#filtersWrap');
+const mainContent = $('#mainContent');
+const countBadge = $('#countBadge');
+const streamModal = $('#streamModal');
+const modalTitle = $('#modalTitle');
+const embedFrame = $('#embedFrame');
+const nativePlayer = $('#nativePlayer');
+const modalSpinner = $('#modalSpinner');
+const closeBtn = $('#closeModal');
+const videoWrap = $('#videoWrap');
+const playerToggle = $('#playerToggle');
 
 let allChannels = [];
 let activeCategory = 'all';
+let activePlayer = 'embed';
+let currentStreamId = '';
+let currentStreamUrl = '';
+let currentChannelName = '';
+let hlsInstance = null;
+let loadAbort = null;
 
-function extractId(channelUrl, streamUrl) {
-  let m = channelUrl && channelUrl.match(/stream-(\d+)/);
-  if (m) return m[1];
-  m = streamUrl && streamUrl.match(/premium(\d+)/);
-  if (m) return m[1];
-  return '';
-}
-
-async function loadData() {
-  try {
-    const res = await fetch(DATA_URL);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    allChannels = Object.entries(data)
-      .filter(([key]) => key !== 'GLOBAL_OPTIONS')
-      .map(([name, info]) => ({
-        name,
-        category: info.group_title || 'Unknown',
-        logo: info.tvg_logo || '',
-        streamUrl: info.stream_url || '',
-        channelUrl: info.channel_url || '',
-        id: extractId(info.channel_url, info.stream_url)
-      }));
-    init();
-  } catch (err) {
-    mainContent.innerHTML = `<div class="error-msg">
-      <h2>Failed to load channels</h2>
-      <p>${err.message}</p>
-    </div>`;
-  }
-}
-
-function init() {
-  renderFilters();
-  render();
-  searchInput.addEventListener('input', render);
-}
-
-const CRICKET_KW = ['cricket','willow','cric','star sports','ten sports','ptv sports','a sport','supersport cricket','fox cricket'];
+const CRICKET_KW = ['cricket', 'willow', 'cric', 'star sports', 'ten sports', 'ptv sports', 'a sport', 'supersport cricket', 'fox cricket'];
 
 function isCricket(ch) {
   const lower = ch.name.toLowerCase();
   return CRICKET_KW.some(kw => lower.includes(kw));
 }
 
+function debounce(fn, ms = 250) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+function extractId(channelUrl, streamUrl) {
+  let m = channelUrl && channelUrl.match(/stream-(\d+)/);
+  if (m) return m[1];
+  m = streamUrl && streamUrl.match(/premium(\d+)/);
+  return m ? m[1] : '';
+}
+
+function parseHeaders(rawOptions) {
+  const headers = { Origin: '', Referer: '' };
+  (rawOptions || []).forEach(line => {
+    const origin = line.match(/http-origin=(.+)/);
+    const referer = line.match(/http-referrer?=(.+)/i);
+    if (origin) headers.Origin = origin[1].trim();
+    if (referer) headers.Referer = referer[1].trim();
+  });
+  return headers;
+}
+
+function loadHlsJs() {
+  return new Promise((resolve, reject) => {
+    if (window.Hls) return resolve(window.Hls);
+    const s = document.createElement('script');
+    s.src = HLS_JS_URL;
+    s.onload = () => resolve(window.Hls);
+    s.onerror = () => reject(new Error('Failed to load hls.js'));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadData() {
+  loadAbort = new AbortController();
+  const signal = loadAbort.signal;
+
+  try {
+    mainContent.innerHTML = '<div class="state-wrap"><div class="spinner"></div></div>';
+    const res = await fetch(DATA_URL, { signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const globalHeaders = parseHeaders(data.GLOBAL_OPTIONS || []);
+
+    allChannels = Object.entries(data)
+      .filter(([key]) => key !== 'GLOBAL_OPTIONS')
+      .map(([name, info]) => {
+        const chHeaders = parseHeaders(info.options || []);
+        return {
+          name,
+          category: info.group_title || 'Unknown',
+          logo: info.tvg_logo || '',
+          streamUrl: info.stream_url || '',
+          channelUrl: info.channel_url || '',
+          id: extractId(info.channel_url, info.stream_url),
+          headers: {
+            Origin: chHeaders.Origin || globalHeaders.Origin,
+            Referer: chHeaders.Referer || globalHeaders.Referer,
+          },
+        };
+      });
+
+    init();
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    mainContent.innerHTML = `
+      <div class="error-msg state-wrap">
+        <h2>Failed to load channels</h2>
+        <p>${err.message}</p>
+        <button class="retry-btn" onclick="loadData()">Retry</button>
+      </div>`;
+  }
+}
+
 function getCategories() {
   const cats = new Set();
   allChannels.forEach(c => cats.add(c.category));
-  return ['all', '🏏 Cricket', ...Array.from(cats).sort()];
+  return ['all', 'Cricket', ...Array.from(cats).sort()];
 }
 
 function renderFilters() {
   const cats = getCategories();
   filtersWrap.innerHTML = cats.map(cat => `
-    <button data-cat="${cat}" class="${cat === activeCategory ? 'active' : ''}">
-      ${cat === 'all' ? 'All' : cat}
-    </button>
+    <button class="pill ${cat === activeCategory ? 'active' : ''}"
+      role="tab"
+      aria-selected="${cat === activeCategory}"
+      data-cat="${cat}">${cat === 'all' ? 'All' : cat}</button>
   `).join('');
-  filtersWrap.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelector('.filters-wrap .active')?.classList.remove('active');
-      btn.classList.add('active');
-      activeCategory = btn.dataset.cat;
-      render();
-    });
-  });
 }
 
 function getFiltered() {
   const q = searchInput.value.trim().toLowerCase();
   return allChannels.filter(c => {
-    if (activeCategory === '🏏 Cricket') {
+    if (activeCategory === 'Cricket') {
       if (!isCricket(c)) return false;
     } else if (activeCategory !== 'all' && c.category !== activeCategory) {
       return false;
@@ -453,57 +652,192 @@ function render() {
   countBadge.textContent = filtered.length;
 
   if (filtered.length === 0) {
-    mainContent.innerHTML = `<div class="no-results">No channels found</div>`;
+    mainContent.innerHTML = '<div class="no-results state-wrap">No channels found</div>';
     return;
   }
 
-  mainContent.innerHTML = `<div class="channel-grid">${
-    filtered.map(c => `
-      <div class="channel-card" data-id="${c.id}" data-name="${c.name}">
+  mainContent.innerHTML = '<div class="channel-grid">' +
+    filtered.map((c, i) => {
+      const safeName = c.name.replace(/"/g, '&quot;');
+      return `<div class="channel-card"
+        data-id="${c.id}"
+        data-name="${safeName}"
+        data-url="${c.streamUrl.replace(/"/g, '&quot;')}"
+        style="animation-delay:${(i % 30) * 30}ms">
         <div class="logo-wrap">
-          <img src="${c.logo}" alt="${c.name}" loading="lazy" onerror="this.style.display='none'">
+          <div class="skeleton"></div>
+          <img src="${c.logo}" alt="${safeName}"
+            loading="lazy"
+            onerror="this.style.display='none'"
+            onload="this.previousElementSibling.style.display='none'">
         </div>
         <div class="info">
-          <div class="name" title="${c.name}">${c.name}</div>
+          <div class="name" title="${safeName}">${c.name}</div>
           <div class="category">${c.category}</div>
         </div>
-      </div>
-    `).join('')
-  }</div>`;
-
-  mainContent.querySelectorAll('.channel-card').forEach(card => {
-    card.addEventListener('click', () => openStream(card.dataset.id, card.dataset.name));
-  });
+      </div>`;
+    }).join('') +
+  '</div>';
 }
 
 function stopPlayer() {
   embedFrame.src = '';
+  embedFrame.style.display = 'none';
+  nativePlayer.removeAttribute('src');
+  nativePlayer.style.display = 'none';
+  if (hlsInstance) {
+    hlsInstance.destroy();
+    hlsInstance = null;
+  }
+  currentStreamUrl = '';
 }
 
-function openStream(id, name) {
+async function playNative(url, headers) {
+  nativePlayer.style.display = 'block';
+  embedFrame.style.display = 'none';
+  modalSpinner.style.display = '';
+
+  if (url.endsWith('.m3u8')) {
+    if (window.Hls || window.Hls !== undefined) {
+      try {
+        if (!window.Hls) await loadHlsJs();
+        if (hlsInstance) hlsInstance.destroy();
+
+        const config = {};
+        if (headers.Origin || headers.Referer) {
+          config.fetchSetup = (context, init) => {
+            if (headers.Origin) init.headers['Origin'] = headers.Origin;
+            if (headers.Referer) init.headers['Referer'] = headers.Referer;
+            return new Request(context.url, init);
+          };
+        }
+
+        hlsInstance = new Hls(config);
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(nativePlayer);
+
+        await new Promise((resolve, reject) => {
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, resolve);
+          hlsInstance.on(Hls.Events.ERROR, (e, data) => {
+            if (data.fatal) reject(new Error(data.details));
+          });
+        });
+
+        modalSpinner.style.display = 'none';
+        try { await nativePlayer.play(); } catch (_) { /* autoplay blocked */ }
+        return true;
+      } catch (err) {
+        console.warn('HLS.js failed:', err);
+        if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+      }
+    }
+
+    if (nativePlayer.canPlayType('application/vnd.apple.mpegurl')) {
+      nativePlayer.src = url;
+      modalSpinner.style.display = 'none';
+      try { await nativePlayer.play(); } catch (_) {}
+      return true;
+    }
+
+    throw new Error('HLS not supported in this browser');
+  } else {
+    nativePlayer.src = url;
+    modalSpinner.style.display = 'none';
+    try { await nativePlayer.play(); } catch (_) {}
+    return true;
+  }
+}
+
+async function openStream(id, name, streamUrl) {
   if (!id) return alert('No stream ID available');
   stopPlayer();
+  currentChannelName = name;
+  currentStreamId = id;
+  currentStreamUrl = streamUrl || '';
+
   modalTitle.textContent = name;
-  modalSpinner.style.display = '';
   streamModal.classList.add('open');
-  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
+  modalSpinner.style.display = '';
+
+  videoWrap.querySelector('.native-error')?.remove();
+
+  if (activePlayer === 'native' && currentStreamUrl) {
+    const channel = allChannels.find(c => c.id === id);
+    try {
+      await playNative(currentStreamUrl, channel ? channel.headers : {});
+    } catch (err) {
+      const errDiv = document.createElement('div');
+      errDiv.className = 'native-error';
+      errDiv.innerHTML = `
+        <span>Native playback: ${err.message}</span>
+        <button onclick="switchToEmbed()">Switch to Embed</button>`;
+      videoWrap.appendChild(errDiv);
+      modalSpinner.style.display = 'none';
+    }
+  } else {
+    embedFrame.style.display = 'block';
+    embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
+    embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
+  }
+}
+
+function switchToEmbed() {
+  videoWrap.querySelector('.native-error')?.remove();
+  stopPlayer();
+  activePlayer = 'embed';
+  const btns = $$('[role="tab"]', playerToggle);
+  btns.forEach(b => { b.classList.toggle('active', b.dataset.mode === 'embed'); b.setAttribute('aria-selected', b.dataset.mode === 'embed'); });
+  modalSpinner.style.display = '';
+  embedFrame.style.display = 'block';
+  embedFrame.src = `https://daddylive.org/embed/embed.php?id=${currentStreamId}&autoplay=1&player=1&source=tv.json`;
   embedFrame.onload = () => { modalSpinner.style.display = 'none'; };
 }
 
-closeModal.addEventListener('click', () => {
+function init() {
+  renderFilters();
+  render();
+  searchInput.addEventListener('input', debounce(render, 200));
+}
+
+filtersWrap.addEventListener('click', e => {
+  const btn = e.target.closest('.pill');
+  if (!btn) return;
+  $$('.pill', filtersWrap).forEach(b => { b.classList.toggle('active', b === btn); b.setAttribute('aria-selected', b === btn); });
+  activeCategory = btn.dataset.cat;
+  render();
+});
+
+mainContent.addEventListener('click', e => {
+  const card = e.target.closest('.channel-card');
+  if (!card) return;
+  openStream(card.dataset.id, card.dataset.name, card.dataset.url);
+});
+
+playerToggle.addEventListener('click', e => {
+  const btn = e.target.closest('[role="tab"]');
+  if (!btn || btn.classList.contains('active')) return;
+  const btns = $$('[role="tab"]', playerToggle);
+  btns.forEach(b => { b.classList.toggle('active', b === btn); b.setAttribute('aria-selected', b === btn); });
+  activePlayer = btn.dataset.mode;
+  if (streamModal.classList.contains('open') && currentStreamId) {
+    openStream(currentStreamId, currentChannelName, currentStreamUrl);
+  }
+});
+
+closeBtn.addEventListener('click', () => {
   streamModal.classList.remove('open');
   stopPlayer();
 });
 
 streamModal.addEventListener('click', e => {
-  if (e.target === streamModal) closeModal.click();
+  if (e.target === streamModal) closeBtn.click();
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal.click();
+  if (e.key === 'Escape' && streamModal.classList.contains('open')) closeBtn.click();
 });
 
-loadData();
+pushloadData();
 </script>
 </body>
 </html>
