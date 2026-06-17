@@ -14,6 +14,10 @@
 <link rel="preconnect" href="//newkso.ru" crossorigin>
 <link rel="dns-prefetch" href="//dlhd.click">
 <link rel="preconnect" href="//dlhd.click" crossorigin>
+<link rel="dns-prefetch" href="https://viewembed.ru">
+<link rel="preconnect" href="https://viewembed.ru" crossorigin>
+<link rel="dns-prefetch" href="https://cdnlivetv.tv">
+<link rel="preconnect" href="https://cdnlivetv.tv" crossorigin>
 <style>
 @layer reset, base, components, utilities, animations;
 
@@ -523,6 +527,7 @@
         allowfullscreen
         loading="eager"
         fetchpriority="high"
+        referrerpolicy="no-referrer-when-downgrade"
         style="display:none"
         title="Stream player"
       ></iframe>
@@ -560,6 +565,7 @@ let activePlayer = 'embed';
 let currentStreamId = '';
 let currentStreamUrl = '';
 let currentChannelName = '';
+let currentEmbedPlayer = 1;
 let hlsInstance = null;
 let loadAbort = null;
 let hlsPreloaded = false;
@@ -813,12 +819,13 @@ async function playNative(url) {
   throw new Error('HLS not supported in this browser. Use Default mode.');
 }
 
-async function openStream(id, name, streamUrl) {
+async function openStream(id, name, streamUrl, player = 1) {
   if (!id) return alert('No stream ID available');
   stopPlayer();
   currentChannelName = name;
   currentStreamId = id;
   currentStreamUrl = streamUrl || '';
+  currentEmbedPlayer = player;
 
   modalTitle.textContent = name;
   streamModal.classList.add('open');
@@ -826,7 +833,12 @@ async function openStream(id, name, streamUrl) {
 
   let loadTimer = setTimeout(() => {
     if (modalSpinner.style.display !== 'none') {
-      loadingSlow.classList.add('show');
+      if (currentEmbedPlayer < 5) {
+        modalSpinner.style.display = 'none';
+        openStream(currentStreamId, currentChannelName, currentStreamUrl, currentEmbedPlayer + 1);
+      } else {
+        loadingSlow.classList.add('show');
+      }
     }
   }, 25000);
 
@@ -847,7 +859,7 @@ async function openStream(id, name, streamUrl) {
     }
   } else {
     embedFrame.style.display = 'block';
-    embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=1&source=tv.json`;
+    embedFrame.src = `https://daddylive.org/embed/embed.php?id=${id}&autoplay=1&player=${player}&source=tv.json`;
     embedFrame.onload = () => { clearTimeout(loadTimer); loadingSlow.classList.remove('show'); modalSpinner.style.display = 'none'; };
   }
 }
